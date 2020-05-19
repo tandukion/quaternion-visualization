@@ -21,7 +21,8 @@ worldQuaternion.set(0.0, 0.0, 0.0, 1);
 
 // Axis angle for the rotiation. Need to be a unit vector (normalized)
 let eulerAxisLine;
-let eulerAxis = new THREE.Vector3(1, 1, 0).normalize();
+let eulerAxis = new THREE.Vector3(1, 0, 0).normalize();
+let eulerAxisLength;
 
 // Arrow visual for the orientation
 let arrowLine;
@@ -86,10 +87,13 @@ function setupViewer(){
     let axisClone = eulerAxis.clone()
     geometry.vertices.push(
         new THREE.Vector3( 0, 0, 0 ),
-        axisClone.multiplyScalar(lineWidth),
+        new THREE.Vector3( lineLength, 0, 0 ),
+        // axisClone.multiplyScalar(lineWidth),
     );
-    eulerAxisLine = new THREE.Line(geometry, axisMaterial);
+    eulerAxisLine = new THREE.Group();
+    eulerAxisLine.add(new THREE.Line(geometry, axisMaterial));
     eulerAxisLine.name = "EulerAxis";
+    eulerAxisLine.setRotationFromAxisAngle(eulerAxis,0);
     scene.add(eulerAxisLine);
 
     // Create the arrow for the given orientation
@@ -110,9 +114,7 @@ function setupViewer(){
     let line2 = new THREE.Line(geometry2, material);
     arrowLine.add(line1);
     arrowLine.add(line2);
-    console.log(arrowLine.quaternion);
     arrowLine.applyQuaternion(arrowQuaternion);
-    console.log(arrowLine.quaternion);
     scene.add(arrowLine);
 
     // Rotate the world to make it easier to view
@@ -145,11 +147,27 @@ function setupSettings() {
     let initialValues = []
     arrowQuaternion.toArray(initialValues);
 
-    // Set the value based on range inputs
-    const inputSlider = ['#quaternion-x', '#quaternion-y', '#quaternion-z', '#quaternion-w'];
-    const inputValues = ['#quaternion-x-value', '#quaternion-y-value', '#quaternion-z-value', '#quaternion-w-value'];
+    // Handle w axis input
+    // Set initial value
+    $('#quaternion-w')
+        .val(arrowQuaternion.w.toFixed(3))
+        .on("input", function () {
+        $('#quaternion-w-value').val(this.value);
+        setQuaternion(this.name,this.value);
+    });
+    $('#quaternion-w-value')
+        .val(arrowQuaternion.w.toFixed(3))
+        .on("input", function () {
+        $('#quaternion-w').val(this.value);
+        setQuaternion(this.name,this.value);
+    });
 
-    // Create a set of [unsorted_input, unsorted_value]
+    // Handle x, y, z inputs
+    // Set the value based on range inputs
+    const inputSlider = ['#quaternion-x', '#quaternion-y', '#quaternion-z'];
+    const inputValues = ['#quaternion-x-value', '#quaternion-y-value', '#quaternion-z-value'];
+
+    // Create a set of input
     const inputSet = inputSlider.map((x, i) => [x, inputValues[i]]);
 
     // Set default input behavior
@@ -160,54 +178,111 @@ function setupSettings() {
 
         // Set default on input function for slider and text inputs
         $(slider).on("input", function () {
+            if (this.value > eulerAxisLength){
+                this.value = eulerAxisLength;
+            }
+            else if (this.value < -1 * eulerAxisLength){
+                this.value = -1 * eulerAxisLength;
+            }
             $(value).val(this.value);
+            setQuaternion(this.name,this.value);
         });
         $(value).on("input", function () {
+            if (this.value > eulerAxisLength){
+                this.value = eulerAxisLength;
+            }
+            else if (this.value < -1 * eulerAxisLength){
+                this.value = -1 * eulerAxisLength;
+            }
             $(slider).val(this.value);
+            setQuaternion(this.name,this.value);
         });
-    });
-
-    // Set the auto changing behavior for each quaternion axis
-    $('#quaternion-w').on("input", function(){
-        setQuaternionW(this.value);
-    });
-    $('#quaternion-w-value').on("input", function(){
-        setQuaternionW(this.value);
     });
 
 }
 
-function setQuaternionW(w){
-    // Get the Euler axis angle
-    let angle = Math.acos(w) * 2;
+/**
+ * Set Quaternion from inputs
+ * @param axis{string}: Name of the axis
+ * @param value{number}: Value of the axis
+ */
+function setQuaternion(axis, value){
+    // Axis value
+    let x,y,z,w;
+    let axisValues;
+    // Unit vector for Euler axis
+    let ux, uy, uz;
 
-    // Set the other axis values
-    let x = eulerAxis.x * Math.sin(angle/2);
-    let y = eulerAxis.y * Math.sin(angle/2);
-    let z = eulerAxis.z * Math.sin(angle/2);
-    const axisValues = [x, y, z];
+    let angle;
 
-    const inputSlider = ['#quaternion-x', '#quaternion-y', '#quaternion-z'];
-    const inputValues = ['#quaternion-x-value', '#quaternion-y-value', '#quaternion-z-value'];
+    switch(axis){
+        case "w":
+            w = value;
+            // Get the Euler axis angle
+            angle = Math.acos(w) * 2;
+
+            eulerAxisLength = Math.sin(angle/2);
+
+            // Set the other axis values
+            x = eulerAxis.x * eulerAxisLength;
+            y = eulerAxis.y * eulerAxisLength;
+            z = eulerAxis.z * eulerAxisLength;
+            axisValues = [x, y, z, parseFloat(w)];
+
+            // Update settings input
+            applySettings(axisValues);
+            break;
+        case "x":
+            // Handle limit value
+            if (value > eulerAxisLength){
+                value = eulerAxisLength;
+            }
+            else if (value < -1 * eulerAxisLength){
+                value = -1 * eulerAxisLength;
+            }
+
+            w = parseFloat(arrowQuaternion.w);
+            angle = Math.acos(w);
+
+            // Calculate on unit vector
+            ux = value / Math.sin(angle);
+            uy = Math.sqrt((1 - Math.pow(ux,2))/2);
+            uz = Math.sqrt((1 - Math.pow(ux,2))/2);
+
+            // Apply the Euler axis
+            eulerAxis.set(ux,uy,uz);
+
+            x = parseFloat(value);
+            y = uy * Math.sin(angle);
+            z = uz * Math.sin(angle);
+
+            // We need the unit vector
+            axisValues = [x, y, z, w];
+            // eulerAxisLine.setRotationFromAxisAngle(eulerAxis,0);
+
+            // Update settings input
+            applySettings(axisValues);
+            break;
+        default:
+            break;
+    }
+}
+
+function applySettings(axis){
+    const inputSlider = ['#quaternion-x', '#quaternion-y', '#quaternion-z', '#quaternion-w'];
+    const inputValues = ['#quaternion-x-value', '#quaternion-y-value', '#quaternion-z-value', '#quaternion-w-value'];
 
     // Create a set of [unsorted_input, unsorted_value]
     const inputSet = inputSlider.map((x, i) => [x, inputValues[i]]);
     inputSet.forEach(function([slider, value], index){
-        $(slider).val(axisValues[index].toFixed(3));
-        $(value).val(axisValues[index].toFixed(3));
+        $(slider).val(axis[index].toFixed(3));
+        $(value).val(axis[index].toFixed(3));
     });
 
+
     // Apply the quaternion
-    arrowQuaternion.setFromAxisAngle(eulerAxis, angle);
+    arrowQuaternion.set(axis[0],axis[1],axis[2],axis[3]);
     arrowLine.setRotationFromQuaternion (arrowQuaternion);
-}
 
-function setQuaternion(){
-    let w = arrowQuaternion.w;
-    let x = arrowQuaternion.x;
-    let y = arrowQuaternion.y;
-    let z = arrowQuaternion.z;
-
-    // arrowLine.applyQuaternion(arrowQuaternion);
-    // console.log(arrowLine);
+    // console.log(axisValues);
 }
