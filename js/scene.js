@@ -19,13 +19,16 @@ let lineLength = 3;
 let worldQuaternion = new THREE.Quaternion();
 worldQuaternion.set(0.0, 0.0, 0.0, 1);
 
+// Axis angle for the rotiation. Need to be a unit vector (normalized)
+let eulerAxisLine;
+let eulerAxis = new THREE.Vector3(1, 1, 0).normalize();
+
 // Arrow visual for the orientation
 let arrowLine;
 let arrowQuaternion = new THREE.Quaternion();
 arrowQuaternion.set(0.0, 0.0, 0.0, 1);
 
-let eVector;
-
+// Run all the setup function on document ready
 $(document).ready(function() {
     setupViewer();
     drawViewer();
@@ -33,6 +36,9 @@ $(document).ready(function() {
     setupSettings();
 });
 
+/**
+ * Setup the viewer scene and all of its member
+ */
 function setupViewer(){
     // Create global scene
     scene = new THREE.Scene();
@@ -54,6 +60,7 @@ function setupViewer(){
     camera.position.x = 5;
     camera.position.y = 5;
     camera.position.z = 5;
+    camera.name = "Camera";
     scene.add(camera);
 
     // Add camera control
@@ -64,15 +71,30 @@ function setupViewer(){
     const divisions = 10;
 
     grid = new THREE.GridHelper( size, divisions );
+    grid.name = "Grid";
     scene.add(grid);
 
     // Add main axis
     axesHelper = new THREE.AxesHelper(lineLength);
+    axesHelper.name = "MainAxes";
     axesHelper.material.linewidth = lineWidth;
     scene.add( axesHelper );
 
+    // Show the axis angle
+    const axisMaterial = new THREE.LineBasicMaterial({color: 0xFFFF00, transparent: true, opacity: 0.8, linewidth: lineWidth});
+    let geometry = new THREE.Geometry();
+    let axisClone = eulerAxis.clone()
+    geometry.vertices.push(
+        new THREE.Vector3( 0, 0, 0 ),
+        axisClone.multiplyScalar(lineWidth),
+    );
+    eulerAxisLine = new THREE.Line(geometry, axisMaterial);
+    eulerAxisLine.name = "EulerAxis";
+    scene.add(eulerAxisLine);
+
     // Create the arrow for the given orientation
     arrowLine = new THREE.Group();
+    arrowLine.name = "Arrow";
     const material = new THREE.LineBasicMaterial({color: 0x000000, linewidth: lineWidth});
     let geometry1 = new THREE.Geometry();
     geometry1.vertices.push(
@@ -88,7 +110,9 @@ function setupViewer(){
     let line2 = new THREE.Line(geometry2, material);
     arrowLine.add(line1);
     arrowLine.add(line2);
+    console.log(arrowLine.quaternion);
     arrowLine.applyQuaternion(arrowQuaternion);
+    console.log(arrowLine.quaternion);
     scene.add(arrowLine);
 
     // Rotate the world to make it easier to view
@@ -98,6 +122,9 @@ function setupViewer(){
     document.getElementById(divID).appendChild(renderer.domElement);
 }
 
+/**
+ * Function that handles the interactive camera orbit controls
+ */
 function drawViewer(){
 
     // update the controls
@@ -111,38 +138,68 @@ function drawViewer(){
     requestAnimationFrame(drawViewer);
 }
 
+/**
+ * Setup the settings inputs for the object
+ */
 function setupSettings() {
-    let w = $('#quaternion-w-value').val();
-    let x = $('#quaternion-x-value').val();
-    let y = $('#quaternion-y-value').val();
-    let z = $('#quaternion-z-value').val();
+    let initialValues = []
+    arrowQuaternion.toArray(initialValues);
 
     // Set the value based on range inputs
-    const input_names = ['#quaternion-x', '#quaternion-y', '#quaternion-z', '#quaternion-w'];
-    const input_values = ['#quaternion-x-value', '#quaternion-y-value', '#quaternion-z-value', '#quaternion-w-value'];
+    const inputSlider = ['#quaternion-x', '#quaternion-y', '#quaternion-z', '#quaternion-w'];
+    const inputValues = ['#quaternion-x-value', '#quaternion-y-value', '#quaternion-z-value', '#quaternion-w-value'];
 
     // Create a set of [unsorted_input, unsorted_value]
-    const input_set = input_names.map((x, i) => [x, input_values[i]]);
+    const inputSet = inputSlider.map((x, i) => [x, inputValues[i]]);
 
     // Set default input behavior
-    for (const [input_name, input_value] of input_set) {
+    inputSet.forEach(function([slider, value], index){
         // Set initial value
-        $(input_value).val($(input_name).val());
+        $(slider).val(initialValues[index].toFixed(3))
+        $(value).val(initialValues[index].toFixed(3))
 
         // Set default on input function for slider and text inputs
-        $(input_name).on("input", function () {
-            $(input_value).val(this.value);
-            setQuaternion();
-            console.log(w)
+        $(slider).on("input", function () {
+            $(value).val(this.value);
         });
-        $(input_value).on("input", function () {
-            $(input_name).val(this.value);
-            setQuaternion();
+        $(value).on("input", function () {
+            $(slider).val(this.value);
         });
-    }
+    });
 
     // Set the auto changing behavior for each quaternion axis
+    $('#quaternion-w').on("input", function(){
+        setQuaternionW(this.value);
+    });
+    $('#quaternion-w-value').on("input", function(){
+        setQuaternionW(this.value);
+    });
 
+}
+
+function setQuaternionW(w){
+    // Get the Euler axis angle
+    let angle = Math.acos(w) * 2;
+
+    // Set the other axis values
+    let x = eulerAxis.x * Math.sin(angle/2);
+    let y = eulerAxis.y * Math.sin(angle/2);
+    let z = eulerAxis.z * Math.sin(angle/2);
+    const axisValues = [x, y, z];
+
+    const inputSlider = ['#quaternion-x', '#quaternion-y', '#quaternion-z'];
+    const inputValues = ['#quaternion-x-value', '#quaternion-y-value', '#quaternion-z-value'];
+
+    // Create a set of [unsorted_input, unsorted_value]
+    const inputSet = inputSlider.map((x, i) => [x, inputValues[i]]);
+    inputSet.forEach(function([slider, value], index){
+        $(slider).val(axisValues[index].toFixed(3));
+        $(value).val(axisValues[index].toFixed(3));
+    });
+
+    // Apply the quaternion
+    arrowQuaternion.setFromAxisAngle(eulerAxis, angle);
+    arrowLine.setRotationFromQuaternion (arrowQuaternion);
 }
 
 function setQuaternion(){
@@ -151,10 +208,6 @@ function setQuaternion(){
     let y = arrowQuaternion.y;
     let z = arrowQuaternion.z;
 
-    // get current Euclidean vector
-    eVector = new THREE.Vector3(x,y,z);
-
-    arrowQuaternion.set(x,y,z,w);
-    arrowLine.applyQuaternion(arrowQuaternion);
+    // arrowLine.applyQuaternion(arrowQuaternion);
     // console.log(arrowLine);
 }
