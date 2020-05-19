@@ -154,13 +154,13 @@ function setupSettings() {
     // Handle w axis input
     // Set initial value
     $('#quaternion-w')
-        .val(arrowQuaternion.w.toFixed(3))
+        .val(parseFloat(arrowQuaternion.w).toFixed(3))
         .on("input", function () {
         $('#quaternion-w-value').val(this.value);
         setQuaternion(this.name,this.value);
     });
     $('#quaternion-w-value')
-        .val(arrowQuaternion.w.toFixed(3))
+        .val(parseFloat(arrowQuaternion.w).toFixed(3))
         .on("input", function () {
         $('#quaternion-w').val(this.value);
         setQuaternion(this.name,this.value);
@@ -177,8 +177,8 @@ function setupSettings() {
     // Set default input behavior
     inputSet.forEach(function([slider, value], index){
         // Set initial value
-        $(slider).val(initialValues[index].toFixed(3))
-        $(value).val(initialValues[index].toFixed(3))
+        $(slider).val(parseFloat(initialValues[index]).toFixed(3))
+        $(value).val(parseFloat(initialValues[index]).toFixed(3))
 
         // Set default on input function for slider and text inputs
         $(slider).on("input", function () {
@@ -223,9 +223,9 @@ function setQuaternion(axis, value){
         case "w":
             w = value;
             // Get the Euler axis angle
-            angle = Math.acos(w) * 2;
+            angle = Math.acos(w);
 
-            eulerAxisLength = Math.sin(angle/2);
+            eulerAxisLength = Math.abs(Math.sin(angle));
 
             // Set the other axis values
             x = eulerAxis.x * eulerAxisLength;
@@ -271,9 +271,16 @@ function setQuaternion(axis, value){
             uz = eulerAxis.z;
 
             // Case #1 Change only z axis
-            if (Math.abs(uy) < Math.sqrt(1 - Math.pow(ux,2)) ){
+            if (Math.abs(uy) < Math.sqrt(1 - Math.pow(ux/eulerAxisLength,2)) ){
                 // Calculate on unit vector
-                uz = Math.sqrt(1 - Math.pow(ux,2)- Math.pow(uy,2));
+                // Calculate on unit vector
+                let uzTemp = Math.sqrt(1 - Math.pow(ux/eulerAxisLength,2)- Math.pow(uy,2));
+                if (uz>=0){
+                    uz = uzTemp;
+                }
+                else{
+                    uz = -1 * uzTemp;
+                }
 
                 // Apply the Euler axis
                 eulerAxis.set(ux,uy,uz);
@@ -305,6 +312,55 @@ function setQuaternion(axis, value){
                 applySettings(axisValues);
             }
             break;
+        case "z":
+            w = parseFloat(arrowQuaternion.w);
+
+            // Unit vector
+            ux = eulerAxis.x;
+            uy = eulerAxis.y;
+            uz = value / eulerAxisLength
+
+            // Case #1 Change only y axis
+            if (Math.abs(uz) < Math.sqrt(1 - Math.pow(ux,2)) ){
+                // Calculate on unit vector
+                let uyTemp = Math.sqrt(1 - Math.pow(ux,2)- Math.pow(uz,2));
+                if (uy>0){
+                    uy = uyTemp;
+                }
+                else{
+                    uy = -1 * uyTemp;
+                }
+
+                // Apply the Euler axis
+                eulerAxis.set(ux,uy,uz);
+                drawEulerAxis();
+
+                // Update settings input
+                x = ux * eulerAxisLength;
+                y = uy * eulerAxisLength;
+                z = parseFloat(value);
+                axisValues = [x, y, z, w];
+                applySettings(axisValues);
+            }
+            else{
+                // Calculate on unit vector
+                let dz = uz - eulerAxis.z;
+                let d = deltaSolver(dz,uz,uy,ux);
+                ux += d;
+                uy += d;
+
+                // Apply the Euler axis
+                eulerAxis.set(ux,uy,uz);
+                drawEulerAxis();
+
+                // Update settings input
+                x = ux * eulerAxisLength;
+                y = uy * eulerAxisLength;
+                z = parseFloat(value);
+                axisValues = [x, y, z, w];
+                applySettings(axisValues);
+            }
+            break;
         default:
             break;
     }
@@ -321,8 +377,8 @@ function applySettings(axis){
     // Create a set of [unsorted_input, unsorted_value]
     const inputSet = inputSlider.map((x, i) => [x, inputValues[i]]);
     inputSet.forEach(function([slider, value], index){
-        $(slider).val(axis[index].toFixed(3));
-        $(value).val(axis[index].toFixed(3));
+        $(slider).val(parseFloat(axis[index]).toFixed(3));
+        $(value).val(parseFloat(axis[index]).toFixed(3));
     });
 
 
@@ -366,7 +422,11 @@ function deltaSolver(dx,x,y,z){
         if ((Math.pow(b, 2) - 4 * a * c) < 0){
             return 0;
         }
-        let d = (-1 * b + Math.sqrt(Math.pow(b, 2) - 4 * a * c)) / (2 * a);
-        return d;
+        if (b > 0){
+            return (-1 * b + Math.sqrt(Math.pow(b, 2) - 4 * a * c)) / (2 * a);
+        }
+        else{
+            return (-1 * b - Math.sqrt(Math.pow(b, 2) - 4 * a * c)) / (2 * a);
+        }
     }
 }
