@@ -11,12 +11,29 @@ let intensity = 0.66;
 
 // Global variables
 let scene, camera, renderer, directionalLight;
-let cameraControls;
+let cameraControls, grid, axesHelper;
+let lineWidth = 3;
+let lineLength = 3;
 
-setup();
-draw();
+// World orientation offset, to make it easier to view
+let worldQuaternion = new THREE.Quaternion();
+worldQuaternion.set(0.0, 0.0, 0.0, 1);
 
-function setup(){
+// Arrow visual for the orientation
+let arrowLine;
+let arrowQuaternion = new THREE.Quaternion();
+arrowQuaternion.set(0.0, 0.0, 0.0, 1);
+
+let eVector;
+
+$(document).ready(function() {
+    setupViewer();
+    drawViewer();
+
+    setupSettings();
+});
+
+function setupViewer(){
     // Create global scene
     scene = new THREE.Scene();
 
@@ -46,19 +63,42 @@ function setup(){
     const size = 10;
     const divisions = 10;
 
-    let grid = new THREE.GridHelper( size, divisions );
+    grid = new THREE.GridHelper( size, divisions );
     scene.add(grid);
 
     // Add main axis
-    let axesHelper = new THREE.AxesHelper(3);
-    axesHelper.material.linewidth = 3;
+    axesHelper = new THREE.AxesHelper(lineLength);
+    axesHelper.material.linewidth = lineWidth;
     scene.add( axesHelper );
+
+    // Create the arrow for the given orientation
+    arrowLine = new THREE.Group();
+    const material = new THREE.LineBasicMaterial({color: 0x000000, linewidth: lineWidth});
+    let geometry1 = new THREE.Geometry();
+    geometry1.vertices.push(
+        new THREE.Vector3( 0, 0, 0 ),
+        new THREE.Vector3( lineLength, 0, 0 )
+    );
+    let geometry2 = new THREE.Geometry();
+    geometry2.vertices.push(
+        new THREE.Vector3( lineLength, 0, 0 ),
+        new THREE.Vector3( lineLength-0.5, 0.5, 0 )
+    );
+    let line1 = new THREE.Line(geometry1, material);
+    let line2 = new THREE.Line(geometry2, material);
+    arrowLine.add(line1);
+    arrowLine.add(line2);
+    arrowLine.applyQuaternion(arrowQuaternion);
+    scene.add(arrowLine);
+
+    // Rotate the world to make it easier to view
+    axesHelper.applyQuaternion(worldQuaternion);
 
     // Add the renderer to the page
     document.getElementById(divID).appendChild(renderer.domElement);
 }
 
-function draw(){
+function drawViewer(){
 
     // update the controls
     cameraControls.update();
@@ -68,5 +108,53 @@ function draw(){
     renderer.render(scene, camera);
 
     // draw the frame
-    requestAnimationFrame(draw);
+    requestAnimationFrame(drawViewer);
+}
+
+function setupSettings() {
+    let w = $('#quaternion-w-value').val();
+    let x = $('#quaternion-x-value').val();
+    let y = $('#quaternion-y-value').val();
+    let z = $('#quaternion-z-value').val();
+
+    // Set the value based on range inputs
+    const input_names = ['#quaternion-x', '#quaternion-y', '#quaternion-z', '#quaternion-w'];
+    const input_values = ['#quaternion-x-value', '#quaternion-y-value', '#quaternion-z-value', '#quaternion-w-value'];
+
+    // Create a set of [unsorted_input, unsorted_value]
+    const input_set = input_names.map((x, i) => [x, input_values[i]]);
+
+    // Set default input behavior
+    for (const [input_name, input_value] of input_set) {
+        // Set initial value
+        $(input_value).val($(input_name).val());
+
+        // Set default on input function for slider and text inputs
+        $(input_name).on("input", function () {
+            $(input_value).val(this.value);
+            setQuaternion();
+            console.log(w)
+        });
+        $(input_value).on("input", function () {
+            $(input_name).val(this.value);
+            setQuaternion();
+        });
+    }
+
+    // Set the auto changing behavior for each quaternion axis
+
+}
+
+function setQuaternion(){
+    let w = arrowQuaternion.w;
+    let x = arrowQuaternion.x;
+    let y = arrowQuaternion.y;
+    let z = arrowQuaternion.z;
+
+    // get current Euclidean vector
+    eVector = new THREE.Vector3(x,y,z);
+
+    arrowQuaternion.set(x,y,z,w);
+    arrowLine.applyQuaternion(arrowQuaternion);
+    // console.log(arrowLine);
 }

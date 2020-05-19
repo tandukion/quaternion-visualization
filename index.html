@@ -9,7 +9,8 @@
   <!-- LIBRARY -->
   <!-- Bootstrap -->
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css">
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+<!--  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>-->
+  <script src="js/jquery/jquery-3.4.1.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
   <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"></script>
 
@@ -35,8 +36,60 @@
         <div id="visual"></div>
       </div>
       <div class="col-sm-4">
-        <h3>Settings</h3>
-        <p>Put settings here</p>
+        <h3>Quaternion</h3>
+
+        <div class="row">
+          <div class="col-sm-1 align-self-center">
+            <p class="text mb-0 align-self-center">w</p>
+          </div>
+          <div class="col-sm-6 align-self-center">
+            <label for="quaternion-w" hidden></label>
+            <input id="quaternion-w" type="range" class="form-control-range" min="-1" max="1" step="0.001" value="1">
+          </div>
+          <div class="col-sm-4 align-self-center">
+            <label for="quaternion-w-value" hidden></label>
+            <input class="form-control" type="number" min="-1" max="1" step="0.001" id="quaternion-w-value">
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-sm-1 align-self-center">
+            <p class="text mb-0 align-self-center">x</p>
+          </div>
+          <div class="col-sm-6 align-self-center">
+            <label for="quaternion-x" hidden></label>
+            <input id="quaternion-x" type="range" class="form-control-range" min="-1" max="1" step="0.001">
+          </div>
+          <div class="col-sm-4 align-self-center">
+            <label for="quaternion-x-value" hidden></label>
+            <input class="form-control" type="number" min="-1" max="1" step="0.001" id="quaternion-x-value">
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-sm-1 align-self-center">
+            <p class="text mb-0 align-self-center">y</p>
+          </div>
+          <div class="col-sm-6 align-self-center">
+            <label for="quaternion-y" hidden></label>
+            <input id="quaternion-y" type="range" class="form-control-range" min="-1" max="1" step="0.001">
+          </div>
+          <div class="col-sm-4 align-self-center">
+            <label for="quaternion-y-value" hidden></label>
+            <input class="form-control" type="number" min="-1" max="1" step="0.001" id="quaternion-y-value">
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-sm-1 align-self-center">
+            <p class="text mb-0 align-self-center">z</p>
+          </div>
+          <div class="col-sm-6 align-self-center">
+            <label for="quaternion-z" hidden></label>
+            <input id="quaternion-z" type="range" class="form-control-range" min="-1" max="1" step="0.001">
+          </div>
+          <div class="col-sm-4 align-self-center">
+            <label for="quaternion-z-value" hidden></label>
+            <input class="form-control" type="number" min="-1" max="1" step="0.001" id="quaternion-z-value">
+          </div>
+        </div>
       </div>
     </div>
   </div>
