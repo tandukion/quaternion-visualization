@@ -82,18 +82,9 @@ function setupViewer(){
     scene.add( axesHelper );
 
     // Show the axis angle
-    const axisMaterial = new THREE.LineBasicMaterial({color: 0xFFFF00, transparent: true, opacity: 0.8, linewidth: lineWidth});
-    let geometry = new THREE.Geometry();
-    let axisClone = eulerAxis.clone()
-    geometry.vertices.push(
-        new THREE.Vector3( 0, 0, 0 ),
-        new THREE.Vector3( lineLength, 0, 0 ),
-        // axisClone.multiplyScalar(lineWidth),
-    );
-    eulerAxisLine = new THREE.Group();
-    eulerAxisLine.add(new THREE.Line(geometry, axisMaterial));
+    eulerAxisLine = new THREE.Line();
     eulerAxisLine.name = "EulerAxis";
-    eulerAxisLine.setRotationFromAxisAngle(eulerAxis,0);
+    drawEulerAxis();
     scene.add(eulerAxisLine);
 
     // Create the arrow for the given orientation
@@ -122,6 +113,19 @@ function setupViewer(){
 
     // Add the renderer to the page
     document.getElementById(divID).appendChild(renderer.domElement);
+}
+
+function drawEulerAxis(){
+
+    const material = new THREE.LineBasicMaterial({color: 0xFFFF00, transparent: true, opacity: 0.8, linewidth: lineWidth});
+    let geometry = new THREE.Geometry();
+    let axisClone = eulerAxis.clone()
+    geometry.vertices.push(
+        new THREE.Vector3( 0, 0, 0 ),
+        axisClone.multiplyScalar(lineWidth),
+    );
+    eulerAxisLine.geometry = geometry;
+    eulerAxisLine.material = material;
 }
 
 /**
@@ -233,41 +237,83 @@ function setQuaternion(axis, value){
             applySettings(axisValues);
             break;
         case "x":
-            // Handle limit value
-            if (value > eulerAxisLength){
-                value = eulerAxisLength;
-            }
-            else if (value < -1 * eulerAxisLength){
-                value = -1 * eulerAxisLength;
-            }
-
             w = parseFloat(arrowQuaternion.w);
-            angle = Math.acos(w);
+
+            // Unit vector
+            ux = value / eulerAxisLength;
+            uy = eulerAxis.y;
+            uz = eulerAxis.z;
 
             // Calculate on unit vector
-            ux = value / Math.sin(angle);
-            uy = Math.sqrt((1 - Math.pow(ux,2))/2);
-            uz = Math.sqrt((1 - Math.pow(ux,2))/2);
+            let dx = ux - eulerAxis.x;
+            let d = deltaSolver(dx,ux,uy,uz);
+            uy += d;
+            uz += d;
 
             // Apply the Euler axis
             eulerAxis.set(ux,uy,uz);
-
-            x = parseFloat(value);
-            y = uy * Math.sin(angle);
-            z = uz * Math.sin(angle);
-
-            // We need the unit vector
-            axisValues = [x, y, z, w];
-            // eulerAxisLine.setRotationFromAxisAngle(eulerAxis,0);
+            drawEulerAxis();
 
             // Update settings input
+            x = parseFloat(value);
+            y = uy * eulerAxisLength;
+            z = uz * eulerAxisLength;
+            axisValues = [x, y, z, w];
             applySettings(axisValues);
+
+            break;
+        case "y":
+            w = parseFloat(arrowQuaternion.w);
+
+            // Unit vector
+            ux = eulerAxis.x;
+            uy = value / eulerAxisLength;
+            uz = eulerAxis.z;
+
+            // Case #1 Change only z axis
+            if (Math.abs(uy) < Math.sqrt(1 - Math.pow(ux,2)) ){
+                // Calculate on unit vector
+                uz = Math.sqrt(1 - Math.pow(ux,2)- Math.pow(uy,2));
+
+                // Apply the Euler axis
+                eulerAxis.set(ux,uy,uz);
+                drawEulerAxis();
+
+                // Update settings input
+                x = ux * eulerAxisLength;
+                y = parseFloat(value);
+                z = uz * eulerAxisLength;
+                axisValues = [x, y, z, w];
+                applySettings(axisValues);
+            }
+            else{
+                // Calculate on unit vector
+                let dy = uy - eulerAxis.y;
+                let d = deltaSolver(dy,uy,ux,uz);
+                ux += d;
+                uz += d;
+
+                // Apply the Euler axis
+                eulerAxis.set(ux,uy,uz);
+                drawEulerAxis();
+
+                // Update settings input
+                x = ux * eulerAxisLength;
+                y = parseFloat(value);
+                z = uz * eulerAxisLength;
+                axisValues = [x, y, z, w];
+                applySettings(axisValues);
+            }
             break;
         default:
             break;
     }
 }
 
+/**
+ *
+ * @param axis{list}: List of quaternion axis values
+ */
 function applySettings(axis){
     const inputSlider = ['#quaternion-x', '#quaternion-y', '#quaternion-z', '#quaternion-w'];
     const inputValues = ['#quaternion-x-value', '#quaternion-y-value', '#quaternion-z-value', '#quaternion-w-value'];
@@ -285,4 +331,42 @@ function applySettings(axis){
     arrowLine.setRotationFromQuaternion (arrowQuaternion);
 
     // console.log(axisValues);
+}
+
+/**
+ *
+ * For a Euler axis, if known x value to be set, we want to get the change for y and z axis.
+ * Assumed the changes are same for y and z axis
+ * With:
+ *      x    : inital x value
+ *      dx   : delta x
+ *      y,z  : initial y, z value
+ *      d    : delta change
+ * Since Euler axis is unit vector:
+ *      (x+dx)2 + (y+d)2 + (z+d)2 = 1
+ *      (x+dx)2 + y2 + z2 + 2(+y+z)d + 2d2 = 1
+ *      d2 + 2(y+z)d + (-1 + (x+dx)2 + y2 + z2) = 0
+ *      d = (-b + sqrt(b2 - 4ac)) / 2a
+ *      With:   a = 1
+ *              b = y+z
+ *              c = (-1 + (x+dx)2 + y2 + z2)
+ * @param dx{number}: delta on X
+ * @param x{number}: given target x value (x+d)
+ * @param y{number}: initial y value
+ * @param z{number}: initial z value
+ */
+function deltaSolver(dx,x,y,z){
+    if (dx === 0) {
+        return 0;
+    }
+    else{
+        let a = 1;
+        let b = y + z;
+        let c = (-1 + Math.pow(x, 2) + Math.pow(y, 2) + Math.pow(z, 2)) / 2;
+        if ((Math.pow(b, 2) - 4 * a * c) < 0){
+            return 0;
+        }
+        let d = (-1 * b + Math.sqrt(Math.pow(b, 2) - 4 * a * c)) / (2 * a);
+        return d;
+    }
 }
