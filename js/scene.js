@@ -61,9 +61,9 @@ function setupViewer(){
 
     // Create the global camera
     camera = new THREE.PerspectiveCamera(40, width / height);
-    camera.position.x = 5;
-    camera.position.y = 5;
-    camera.position.z = 5;
+    camera.position.x = 6;
+    camera.position.y = 6;
+    camera.position.z = 6;
     camera.name = "Camera";
     scene.add(camera);
 
@@ -83,6 +83,19 @@ function setupViewer(){
     axesHelper.name = "MainAxes";
     axesHelper.material.linewidth = lineWidth;
     scene.add( axesHelper );
+
+    let labelX = textSprite("x", "#FF0000");
+    labelX.position.setX(lineWidth + 0.2);
+    let labelY = textSprite("y", "#008000");
+    labelY.position.setY(lineWidth + 0.2);
+    let labelZ = textSprite("z", "#0000FF");
+    labelZ.position.setZ(lineWidth + 0.2);
+
+    let labels = new THREE.Group();
+    labels.add(labelX);
+    labels.add(labelY);
+    labels.add(labelZ);
+    scene.add(labels);
 
     // Show the axis angle
     eulerAxisLine = new THREE.ArrowHelper();
@@ -122,6 +135,33 @@ function setupViewer(){
 
     // Add the renderer to the page
     document.getElementById(divID).appendChild(renderer.domElement);
+}
+
+function textSprite(text, color){
+    let font = 150;
+    let canvas = document.createElement('canvas');
+    canvas.width = font*2;
+    canvas.height = font*2;
+    let context = canvas.getContext('2d');
+
+    context.font = font*2 + "px Helvetica";
+	context.textAlign = "center";
+	context.textBaseline = "middle";
+    context.fillStyle = color;
+    context.fillText(text, canvas.width/2, canvas.height/2);
+
+    // canvas contents will be used for a texture
+    let texture = new THREE.Texture(canvas);
+    texture.needsUpdate = true;
+
+    let spriteMaterial = new THREE.SpriteMaterial( {
+        map: texture,
+        transparent: true,
+    });
+    let sprite = new THREE.Sprite( spriteMaterial );
+    sprite.scale.set(0.25,0.25,1)
+
+    return sprite;
 }
 
 function drawEulerAxis(){
