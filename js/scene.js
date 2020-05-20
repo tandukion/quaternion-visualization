@@ -137,6 +137,7 @@ function drawSurface(){
 
     // Global parameter
     const material = new THREE.MeshBasicMaterial( {color: 0x00FFFF, transparent: true, opacity: 0.5} );
+    material.side = THREE.DoubleSide;
 
     // Set the theta length based on w axis
     let theta = 2 * Math.acos(arrowQuaternion.w);
@@ -149,7 +150,7 @@ function drawSurface(){
         let radius = d * Math.sin(angle);
         let radSegments = 64;
         let hSegments = 1;
-        let openEnded = false;
+        let openEnded = true;
 
         // Set theta start since by default ConeGeometry start from y axis, but we need from x axis
 
