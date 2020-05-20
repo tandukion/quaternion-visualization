@@ -29,6 +29,9 @@ let arrowLine;
 let arrowQuaternion = new THREE.Quaternion();
 arrowQuaternion.set(0.0, 0.0, 0.0, 1);
 
+// Surface of Revolution
+let revolutionSurface;
+
 // Run all the setup function on document ready
 $(document).ready(function() {
     setupViewer();
@@ -82,10 +85,16 @@ function setupViewer(){
     scene.add( axesHelper );
 
     // Show the axis angle
-    eulerAxisLine = new THREE.Line();
+    eulerAxisLine = new THREE.ArrowHelper();
     eulerAxisLine.name = "EulerAxis";
     drawEulerAxis();
     scene.add(eulerAxisLine);
+
+    // Create Surface of Revolution
+    revolutionSurface = new THREE.Mesh();
+    revolutionSurface.name = "RevolutionSurface";
+    drawSurface()
+    scene.add(revolutionSurface);
 
     // Create the arrow for the given orientation
     arrowLine = new THREE.Group();
@@ -116,16 +125,53 @@ function setupViewer(){
 }
 
 function drawEulerAxis(){
+    eulerAxisLine.origin = new THREE.Vector3(0,0,0);
+    eulerAxisLine.setDirection(eulerAxis);
+    eulerAxisLine.setLength(lineWidth);
+    eulerAxisLine.setColor(0xFFFF00);
+}
 
-    const material = new THREE.LineBasicMaterial({color: 0xFFFF00, transparent: true, opacity: 0.8, linewidth: lineWidth});
-    let geometry = new THREE.Geometry();
-    let axisClone = eulerAxis.clone()
-    geometry.vertices.push(
-        new THREE.Vector3( 0, 0, 0 ),
-        axisClone.multiplyScalar(lineWidth),
-    );
-    eulerAxisLine.geometry = geometry;
-    eulerAxisLine.material = material;
+function drawSurface(){
+    // Get angle between Euler axis and X axis
+    let angle = eulerAxis.angleTo(new THREE.Vector3(1,0,0));
+
+    // Global parameter
+    const material = new THREE.MeshBasicMaterial( {color: 0x00FFFF, transparent: true, opacity: 0.5} );
+    let thetaStart = 0;
+    let theta = 2 * Math.PI;
+    // let theta = Math.acos(arrowQuaternion.w);
+
+    // Create cone for default vector
+    if (angle !== Math.PI/2){
+        // Calculate cone height and radius from the diagonal
+        let d = lineWidth;
+        let height = d * Math.cos(angle);
+        let radius = d * Math.sin(angle);
+        let radSegments = 64;
+        let hSegments = 1;
+        let openEnded = false;
+
+        const geometry = new THREE.ConeGeometry(radius, height, radSegments, hSegments, openEnded, thetaStart, theta);
+        // Put the cone top at origin
+        geometry.translate(0,-height/2,0);
+        // geometry.rotateY(Math.PI/2);
+
+        // Put the cone to have Euler axis as its axis
+        revolutionSurface.geometry = geometry;
+        revolutionSurface.material = material;
+        revolutionSurface.lookAt(eulerAxis);
+        revolutionSurface.rotateOnAxis(new THREE.Vector3(1,0,0), -Math.PI/2);
+    }
+    // Create circle on 90 degree vectors
+    else{
+        let radius = lineWidth;
+        let radSegments = 64;
+
+        const geometry = new THREE.CircleGeometry(radius, radSegments, thetaStart, theta);
+        revolutionSurface.geometry = geometry;
+        revolutionSurface.material = material;
+        revolutionSurface.lookAt(eulerAxis);
+    }
 }
 
 /**
@@ -235,6 +281,8 @@ function setQuaternion(axis, value){
 
             // Update settings input
             applySettings(axisValues);
+            drawSurface();
+
             break;
         case "x":
             w = parseFloat(arrowQuaternion.w);
@@ -253,6 +301,7 @@ function setQuaternion(axis, value){
             // Apply the Euler axis
             eulerAxis.set(ux,uy,uz);
             drawEulerAxis();
+            drawSurface();
 
             // Update settings input
             x = parseFloat(value);
@@ -285,6 +334,7 @@ function setQuaternion(axis, value){
                 // Apply the Euler axis
                 eulerAxis.set(ux,uy,uz);
                 drawEulerAxis();
+                drawSurface();
 
                 // Update settings input
                 x = ux * eulerAxisLength;
@@ -303,6 +353,7 @@ function setQuaternion(axis, value){
                 // Apply the Euler axis
                 eulerAxis.set(ux,uy,uz);
                 drawEulerAxis();
+                drawSurface();
 
                 // Update settings input
                 x = ux * eulerAxisLength;
@@ -334,6 +385,7 @@ function setQuaternion(axis, value){
                 // Apply the Euler axis
                 eulerAxis.set(ux,uy,uz);
                 drawEulerAxis();
+                drawSurface();
 
                 // Update settings input
                 x = ux * eulerAxisLength;
@@ -352,6 +404,7 @@ function setQuaternion(axis, value){
                 // Apply the Euler axis
                 eulerAxis.set(ux,uy,uz);
                 drawEulerAxis();
+                drawSurface();
 
                 // Update settings input
                 x = ux * eulerAxisLength;
@@ -422,11 +475,6 @@ function deltaSolver(dx,x,y,z){
         if ((Math.pow(b, 2) - 4 * a * c) < 0){
             return 0;
         }
-        if (b > 0){
-            return (-1 * b + Math.sqrt(Math.pow(b, 2) - 4 * a * c)) / (2 * a);
-        }
-        else{
-            return (-1 * b - Math.sqrt(Math.pow(b, 2) - 4 * a * c)) / (2 * a);
-        }
+        return (-1 * b + Math.sqrt(Math.pow(b, 2) - 4 * a * c)) / (2 * a);
     }
 }
