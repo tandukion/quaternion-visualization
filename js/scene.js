@@ -137,9 +137,9 @@ function drawSurface(){
 
     // Global parameter
     const material = new THREE.MeshBasicMaterial( {color: 0x00FFFF, transparent: true, opacity: 0.5} );
-    let thetaStart = 0;
-    let theta = 2 * Math.PI;
-    // let theta = Math.acos(arrowQuaternion.w);
+
+    // Set the theta length based on w axis
+    let theta = 2 * Math.acos(arrowQuaternion.w);
 
     // Create cone for default vector
     if (angle !== Math.PI/2){
@@ -151,7 +151,24 @@ function drawSurface(){
         let hSegments = 1;
         let openEnded = false;
 
-        const geometry = new THREE.ConeGeometry(radius, height, radSegments, hSegments, openEnded, thetaStart, theta);
+        // Set theta start since by default ConeGeometry start from y axis, but we need from x axis
+
+        // Get projection of y to e. y1 = |y|cos theta * e
+        let y1 = eulerAxis.clone();
+        y1.multiplyScalar(Math.cos(new THREE.Vector3(0,1,0).angleTo(eulerAxis)));
+        // Get projection of y to base. y2 = y - y1
+        let y2 = new THREE.Vector3(0,1,0).sub(y1);
+
+        // Get projection of x to e. x1 = |x|cos theta * e
+        let x1 = eulerAxis.clone();
+        x1.multiplyScalar(Math.cos(new THREE.Vector3(1,0,0).angleTo(eulerAxis)));
+        // Get projection of x to base. x2 = x - x1
+        let x2 = new THREE.Vector3(1,0,0).sub(x1);
+
+        // The start will be from angle between y2 and x2
+        let thetaStart = y2.angleTo(x2);
+
+        const geometry = new THREE.ConeGeometry(radius, height, radSegments, hSegments, openEnded, thetaStart, -theta);
         // Put the cone top at origin
         geometry.translate(0,-height/2,0);
         // geometry.rotateY(Math.PI/2);
@@ -167,7 +184,7 @@ function drawSurface(){
         let radius = lineWidth;
         let radSegments = 64;
 
-        const geometry = new THREE.CircleGeometry(radius, radSegments, thetaStart, theta);
+        const geometry = new THREE.CircleGeometry(radius, radSegments, 0, theta);
         revolutionSurface.geometry = geometry;
         revolutionSurface.material = material;
         revolutionSurface.lookAt(eulerAxis);
